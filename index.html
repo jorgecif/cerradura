@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Cerradura Electrónica - I+D+IA</title>
+  <style>
+    /* Reset y tipografía */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #121212;
+      color: #eee;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    /* Contenedor de la cerradura */
+    #safe {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle at center, #444 0%, #222 80%);
+      border: 8px solid #555;
+      border-radius: 50%;
+      box-shadow: inset 0 0 10px #000, 0 0 20px #000;
+      perspective: 800px;
+      margin-bottom: 30px;
+    }
+    .door {
+      position: absolute;
+      width: 50%;
+      height: 100%;
+      top: 0;
+      background: linear-gradient(90deg, #666, #333);
+      border-radius: 50% 0 0 50%;
+      transform-origin: left center;
+      transition: transform 1s ease-in-out;
+    }
+    .door.right {
+      left: 50%;
+      border-radius: 0 50% 50% 0;
+      transform-origin: right center;
+      background: linear-gradient(270deg, #666, #333);
+    }
+    #safe.open .door.left  { transform: rotateY(-90deg) translateX(-10px); }
+    #safe.open .door.right { transform: rotateY( 90deg) translateX(10px); }
+
+    /* Panel de entrada */
+    #panel {
+      text-align: center;
+    }
+    #panel h2 {
+      margin-bottom: 10px;
+    }
+    #code-input {
+      padding: 10px;
+      font-size: 1rem;
+      width: 200px;
+      border: 2px solid #555;
+      border-radius: 5px;
+      background: #222;
+      color: #eee;
+      transition: border-color 0.3s;
+    }
+    #code-input:focus {
+      outline: none;
+      border-color: #0af;
+    }
+    #validate-btn {
+      padding: 10px 20px;
+      font-size: 1rem;
+      margin-left: 10px;
+      border: none;
+      border-radius: 5px;
+      background: #0af;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 10px #0af55;
+      transition: transform 0.1s;
+    }
+    #validate-btn:active { transform: scale(0.95); }
+
+    /* Efecto shake */
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-3px); }
+      50% { transform: translateX(3px); }
+      75% { transform: translateX(-3px); }
+      100% { transform: translateX(0); }
+    }
+    .shake {
+      animation: shake 0.3s;
+    }
+
+    /* LEDs */
+    #leds {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .led {
+      width: 20px;
+      height: 20px;
+      background: #333;
+      border-radius: 50%;
+      margin: 0 5px;
+      box-shadow: inset 0 0 5px #000;
+      transition: background 0.5s, box-shadow 0.5s;
+    }
+    .led.green { background: #0f0; box-shadow: 0 0 10px #0f0; }
+    .led.red   { background: #f00; box-shadow: 0 0 10px #f00; }
+
+    /* Mensaje final */
+    #message {
+      margin-top: 30px;
+      font-size: 1.5rem;
+      opacity: 0;
+      transition: opacity 1s ease-in;
+    }
+    #message.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <div id="safe">
+    <div class="door left"></div>
+    <div class="door right"></div>
+  </div>
+
+  <div id="panel">
+    <h2 id="step-title">Ingrese Código 1</h2>
+    <input type="text" id="code-input" placeholder="Introduce el código" autocomplete="off">
+    <button id="validate-btn">Validar</button>
+    <div id="leds">
+      <div class="led" id="led1"></div>
+      <div class="led" id="led2"></div>
+      <div class="led" id="led3"></div>
+      <div class="led" id="led4"></div>
+    </div>
+    <div id="message">🔓 ¡I+D+IA! 🔓</div>
+  </div>
+
+  <!-- Sonidos -->
+  <audio id="ok-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+  <audio id="error-sound" src="https://actions.google.com/sounds/v1/alarms/beep_error.ogg"></audio>
+  <audio id="unlock-sound" src="https://actions.google.com/sounds/v1/doors/door_unlock.ogg"></audio>
+
+  <script>
+    const codes = ["codigo1", "codigo2", "codigo3", "codigo4"];
+    let step = 0;
+
+    const input      = document.getElementById('code-input');
+    const btn        = document.getElementById('validate-btn');
+    const title      = document.getElementById('step-title');
+    const leds       = [1,2,3,4].map(i => document.getElementById('led'+i));
+    const safe       = document.getElementById('safe');
+    const message    = document.getElementById('message');
+    const okSound    = document.getElementById('ok-sound');
+    const errorSound = document.getElementById('error-sound');
+    const unlockSound= document.getElementById('unlock-sound');
+
+    btn.addEventListener('click', () => {
+      const userCode = input.value.trim();
+
+      if (userCode === codes[step]) {
+        // Correcto
+        okSound.currentTime = 0;
+        okSound.play();
+        leds[step].classList.add('green');
+        step++;
+        input.value = '';
+        if (step < codes.length) {
+          title.textContent = `Ingrese Código ${step+1}`;
+        } else {
+          // TODOS CORRECTOS
+          unlockSound.play();
+          safe.classList.add('open');
+          message.classList.add('visible');
+          title.textContent = '¡Cerradura Abierta!';
+          input.disabled = true;
+          btn.disabled = true;
+        }
+      } else {
+        // Incorrecto
+        errorSound.currentTime = 0;
+        errorSound.play();
+        btn.classList.add('shake');
+        leds[step].classList.add('red');
+        setTimeout(() => {
+          leds[step].classList.remove('red');
+          btn.classList.remove('shake');
+        }, 500);
+      }
+    });
+
+    // Permitir validar con Enter
+    input.addEventListener('keyup', e => {
+      if (e.key === 'Enter') btn.click();
+    });
+  </script>
+
+</body>
+</html>
